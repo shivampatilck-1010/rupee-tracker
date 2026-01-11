@@ -10,6 +10,7 @@ import HomePage from "@/pages/home";
 import LandingPage from "@/pages/index";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
+import InstallPage from "@/pages/install";
 import ProfilePage from "@/pages/profile";
 import CalendarPage from "@/pages/calendar";
 import PlanningPage from "@/pages/planning";
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
+      <Route path="/install" component={InstallPage} />
       <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} />} />
       <Route path="/app" component={() => <ProtectedRoute component={HomePage} />} />
       <Route path="/calendar" component={() => <ProtectedRoute component={CalendarPage} />} />

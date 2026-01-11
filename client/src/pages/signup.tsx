@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Wallet, Mail, Lock, User, CheckCircle2 } from "lucide-react";
+import { UserPlus, Wallet, Mail, Lock, User, CheckCircle2, Smartphone, ArrowRight } from "lucide-react";
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -277,6 +277,25 @@ export default function SignupPage() {
                   </p>
                 </div>
               </form>
+
+              {/* Install App CTA for Mobile */}
+              <div className="mt-8 pt-6 border-t border-slate-700/50">
+                <div 
+                  className="bg-slate-700/30 hover:bg-slate-700/50 border border-slate-600/50 rounded-xl p-4 flex items-center justify-between cursor-pointer transition-all duration-300 group"
+                  onClick={() => setLocation("/install")}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <Smartphone className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-white group-hover:text-green-400 transition-colors">Install for Android</p>
+                      <p className="text-xs text-slate-400">Get the native app experience</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-green-400 transition-colors" />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
