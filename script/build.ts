@@ -1,67 +1,47 @@
-import { build as esbuild } from "esbuild";
-import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
-const allowlist = [
-  "@google/generative-ai",
-  "axios",
-  "connect-pg-simple",
-  "cors",
-  "date-fns",
-  "drizzle-orm",
-  "drizzle-zod",
-  "express",
-  "express-rate-limit",
-  "express-session",
-  "jsonwebtoken",
-  "memorystore",
-  "multer",
-  "nanoid",
-  "nodemailer",
-  "openai",
-  "passport",
-  "passport-local",
-  "pg",
-  "stripe",
-  "uuid",
-  "ws",
-  "xlsx",
-  "zod",
-  "zod-validation-error",
-];
+import { build as viteBuild } from 'vite';
+import { build as esbuild } from 'esbuild';
+import { rm, readFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Adjust root to be one level up since this script is in script/ folder
+const rootDir = path.resolve(__dirname, '..');
 
 async function buildAll() {
-  await rm("dist", { recursive: true, force: true });
+  try {
+    console.log('🔨 Removing old dist...');
+    await rm(path.join(rootDir, 'dist'), { recursive: true, force: true });
 
-  console.log("building client...");
-  await viteBuild();
+    console.log('📦 Building client with Vite...');
+    await viteBuild();
 
-  console.log("building server...");
-  const pkg = JSON.parse(await readFile("package.json", "utf-8"));
-  const allDeps = [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.devDependencies || {}),
-  ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+    console.log('🖥️  Building server...');
+    const pkg = JSON.parse(await readFile(path.join(rootDir, 'package.json'), 'utf-8'));
+    // Mark all dependencies as external for the server build
+    // This avoids bundling native modules like bcrypt which can cause issues
+    const allDeps = [
+      ...Object.keys(pkg.dependencies || {}),
+      ...Object.keys(pkg.devDependencies || {}),
+    ];
 
-  await esbuild({
-    entryPoints: ["server/index.ts"],
-    platform: "node",
-    bundle: true,
-    format: "cjs",
-    outfile: "dist/index.cjs",
-    define: {
-      "process.env.NODE_ENV": '"production"',
-    },
-    minify: true,
-    external: externals,
-    logLevel: "info",
-  });
+    await esbuild({
+      entryPoints: [path.join(rootDir, 'server/index.ts')],
+      outfile: path.join(rootDir, 'dist/index.cjs'),
+      bundle: true,
+      platform: 'node',
+      target: 'node20',
+      external: allDeps, 
+      format: 'cjs',
+      logLevel: 'info',
+    });
+
+    console.log('✅ Build complete!');
+  } catch (error: any) {
+    console.error('❌ Build failed:', error.message);
+    process.exit(1);
+  }
 }
 
-buildAll().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+buildAll();

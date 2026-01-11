@@ -16,7 +16,7 @@ const mongoStorage = new MongoStorage(mongoUrl);
 
 export const storage = mongoStorage;
 
-// Keep the old exports for compatibility
+// Export the interface for type checking
 export interface IStorage {
   getUser(id: string): Promise<any | undefined>;
   getUserByUsername(username: string): Promise<any | undefined>;
@@ -28,6 +28,4 @@ export interface IStorage {
   createSession(userId: string, expiresAt: Date): Promise<any>;
   getSessionById(id: string): Promise<any | undefined>;
   deleteSession(id: string): Promise<void>;
-  getUserBudget(userId: string): Promise<number | undefined>;
-  setUserBudget(userId: string, budget: number): Promise<void>;
 }

@@ -1,7 +1,11 @@
+// @ts-ignore
+import cookieParser from "cookie-parser";
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { rateLimit, startRateLimitCleanup } from "./rate-limit";
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,6 +25,22 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled for development compatibility with Vite/images
+}));
+
+// Apply rate limiting - skip for AI analysis endpoint which can be called frequently
+app.use(
+  rateLimit(500, 60 * 1000, (req) => {
+    // Skip rate limiting for non-API routes (static assets, etc.)
+    if (!req.path.startsWith("/api")) return true;
+
+    // Skip rate limiting for AI analysis endpoint
+    return req.path === "/api/ai/analysis";
+  })
+);
+startRateLimitCleanup();
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -89,7 +109,6 @@ app.use((req, res, next) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);
