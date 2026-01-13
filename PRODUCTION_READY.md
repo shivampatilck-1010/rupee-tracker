@@ -54,10 +54,12 @@
 - ✅ Monthly budget management (set/save/load)
 - ✅ Calendar view with date-based filtering
 - ✅ Financial analytics (charts, statistics)
-- ✅ Finance Bot chatbot with AI-like responses
+- ✅ Finance Bot chatbot with AI-like responses (financial advice, news, weather)
 - ✅ Category-based expense tracking
 - ✅ Daily/monthly spending trends
 - ✅ Profile page with yearly statistics
+- ✅ Real-time news integration (NewsAPI)
+- ✅ Weather information (OpenWeatherMap)
 
 ## 🚀 Deployment Instructions
 

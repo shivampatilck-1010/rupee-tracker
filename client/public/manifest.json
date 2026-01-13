@@ -5,14 +5,12 @@
     {
       "src": "favicon.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192",
-      "purpose": "any maskable"
+      "sizes": "192x192"
     },
     {
       "src": "favicon.svg",
       "type": "image/svg+xml",
-      "sizes": "512x512",
-      "purpose": "any maskable"
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",

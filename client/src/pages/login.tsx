@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, Wallet, Mail, Lock, ArrowRight, Smartphone } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { LogIn, Wallet, Mail, Lock, ArrowRight } from "lucide-react";
 import SplashScreen from "@/components/splash-screen";
+import { useAuth } from "@/App";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -16,6 +16,22 @@ export default function LoginPage() {
   const [showSplash, setShowSplash] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { setAuthenticated } = useAuth();
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      const playVideo = async () => {
+        try {
+          await video.play();
+        } catch (error) {
+          console.log('Video autoplay failed:', error);
+        }
+      };
+      playVideo();
+    }
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
@@ -27,13 +43,21 @@ export default function LoginPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Login failed");
+        let errorMessage = "Login failed";
+        try {
+          const error = await response.json();
+          errorMessage = error.message || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use status text or default message
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       return response.json();
     },
     onSuccess: () => {
+      setAuthenticated(true);
       // Show splash screen instead of immediate redirect
       setShowSplash(true);
     },
@@ -61,13 +85,37 @@ export default function LoginPage() {
 
   return (
     <>
-      <AnimatePresence>
-        {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
-      </AnimatePresence>
-      
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+
+      <div className="min-h-screen flex flex-col relative overflow-hidden bg-slate-900">
+        {/* Video Background */}
+        <video
+          ref={videoRef}
+          autoPlay
+          loop
+          muted
+          onError={() => {
+            console.log('Video failed to load, hiding video');
+            if (videoRef.current) {
+              videoRef.current.style.display = 'none';
+            }
+          }}
+          onLoadedData={() => {
+            console.log('Video loaded successfully');
+          }}
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        >
+          <source src="/background-video.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        {/* Overlay for better text readability */}
+        <div className="absolute inset-0 bg-black/30 z-10"></div>
+        {/* Floating Shapes */}
+        <div className="floating-shape floating-shape-1"></div>
+        <div className="floating-shape floating-shape-2"></div>
+        <div className="floating-shape floating-shape-3"></div>
       {/* Navigation */}
-      <nav className="border-b border-slate-700/50 bg-slate-900/40 backdrop-blur-md sticky top-0 z-10">
+      <nav className="border-b border-slate-700/50 bg-slate-900/10 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div 
             className="flex items-center gap-3 cursor-pointer group transition-all duration-300 hover:opacity-80"
@@ -92,7 +140,7 @@ export default function LoginPage() {
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative z-30">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-5xl">
           {/* Left Side - Branding */}
           <div className="hidden lg:flex flex-col justify-center space-y-8">
@@ -130,7 +178,7 @@ export default function LoginPage() {
           </div>
 
           {/* Right Side - Login Form */}
-          <Card className="bg-slate-800/60 border-slate-700 shadow-2xl backdrop-blur-xl">
+          <Card className="bg-slate-800/30 border-slate-700 shadow-2xl backdrop-blur-xl">
             <CardHeader className="space-y-3 pb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -205,25 +253,6 @@ export default function LoginPage() {
                   </p>
                 </div>
               </form>
-
-              {/* Install App CTA for Mobile */}
-              <div className="mt-8 pt-6 border-t border-slate-700/50">
-                <div 
-                  className="bg-slate-700/30 hover:bg-slate-700/50 border border-slate-600/50 rounded-xl p-4 flex items-center justify-between cursor-pointer transition-all duration-300 group"
-                  onClick={() => setLocation("/install")}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                      <Smartphone className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-white group-hover:text-green-400 transition-colors">Install for Android</p>
-                      <p className="text-xs text-slate-400">Get the native app experience</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-green-400 transition-colors" />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

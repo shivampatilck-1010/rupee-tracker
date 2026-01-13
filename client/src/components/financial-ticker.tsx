@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+
 import { TrendingUp, DollarSign, PieChart, Activity, AlertCircle } from "lucide-react";
 
 const TICKER_ITEMS = [
@@ -33,17 +33,8 @@ export function FinancialTicker() {
   return (
     <div className="w-full overflow-hidden bg-card/80 border-y border-border backdrop-blur-sm py-3 mb-6">
       <div className="flex relative">
-        <motion.div
-          className="flex gap-12 whitespace-nowrap"
-          animate={{
-            x: ["0%", "-33.33%"],
-          }}
-          transition={{
-            repeat: Infinity,
-            repeatType: "loop",
-            duration: 20,
-            ease: "linear",
-          }}
+        <div
+          className="flex gap-12 whitespace-nowrap animate-ticker"
         >
           {/* Repeat items to create seamless loop effect */}
           {[...TICKER_ITEMS, ...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
@@ -52,7 +43,7 @@ export function FinancialTicker() {
               <span className="text-sm font-medium text-muted-foreground">{item.text}</span>
             </div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

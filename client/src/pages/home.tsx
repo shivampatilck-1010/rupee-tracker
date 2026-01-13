@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   PieChart,
@@ -59,7 +59,9 @@ import { useToast } from "@/hooks/use-toast";
 import ChatBot from "@/components/chat-bot";
 import { FinancialTicker } from "@/components/financial-ticker";
 import { ModeToggle } from "@/components/mode-toggle";
-import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/App";
+import { validateExpense } from "@/lib/validate";
+
 
 /* ================= TYPES ================= */
 
@@ -101,6 +103,7 @@ export default function HomePage() {
   const [newBudget, setNewBudget] = useState("50000");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { logout } = useAuth();
 
   const [newExpense, setNewExpense] = useState({
     amount: "",
@@ -178,16 +181,23 @@ export default function HomePage() {
       return;
     }
 
+    const expenseData = {
+      ...newExpense,
+      amount: Number(newExpense.amount),
+      date: new Date().toISOString().split("T")[0],
+    };
+
+    if (!validateExpense(expenseData)) {
+      toast({ title: "Error", description: "Invalid expense data", variant: "destructive" });
+      return;
+    }
+
     try {
       const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          ...newExpense,
-          amount: Number(newExpense.amount),
-          date: new Date().toISOString().split("T")[0],
-        }),
+        body: JSON.stringify(expenseData),
       });
 
       const data = await res.json();
@@ -201,10 +211,10 @@ export default function HomePage() {
       setNewExpense({ amount: "", category: "", description: "" });
       toast({ title: "Success", description: "Expense added successfully" });
     } catch (error: any) {
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to add expense", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add expense",
+        variant: "destructive"
       });
     }
   };
@@ -249,35 +259,16 @@ export default function HomePage() {
     }
   };
 
-  const handleLogout = async () => {
-    await fetch("/api/logout", { method: "POST", credentials: "include" });
-    setLocation("/");
+  const handleLogout = () => {
+    logout();
   };
 
   /* ================= JSX ================= */
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const item = {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1 }
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/30">
-      <motion.header 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="sticky top-0 z-50 backdrop-blur-xl bg-background/50 border-b border-border/50 p-4 flex justify-between items-center"
+      <header
+        className="sticky top-0 z-50 backdrop-blur-xl bg-background/50 border-b border-border/50 p-4 flex justify-between items-center animate-in slide-in-from-top-5 duration-500"
       >
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -297,19 +288,15 @@ export default function HomePage() {
             <LogOut className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Logout</span>
           </Button>
         </div>
-      </motion.header>
+      </header>
 
       <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
         <FinancialTicker />
         
-        <motion.div 
-          variants={container}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-700"
         >
-          <motion.div variants={item}>
+          <div className="animate-in slide-in-from-left-5 duration-500 delay-100">
             <Card className="relative overflow-hidden bg-card border-border hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group">
               <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               <CardContent className="pt-6 relative">
@@ -327,9 +314,9 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
 
-          <motion.div variants={item}>
+          <div className="animate-in slide-in-from-bottom-5 duration-500 delay-200">
             <Card className="relative overflow-hidden bg-card border-border hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group">
               <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               <CardContent className="pt-6 relative">
@@ -357,9 +344,9 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
 
-          <motion.div variants={item}>
+          <div className="animate-in slide-in-from-bottom-5 duration-500 delay-200">
             <Card className="relative overflow-hidden bg-card border-border hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 group">
               <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               <CardContent className="pt-6 relative">
@@ -375,24 +362,20 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${remaining < 0 ? 'bg-destructive' : 'bg-cyan-500'}`} 
-                    style={{ width: `${Math.max(0, Math.min(100, (remaining / monthlyBudget) * 100))}%` }} 
+                  <div
+                    className={`h-full ${remaining < 0 ? 'bg-destructive' : 'bg-cyan-500'}`}
+                    style={{ width: `${Math.max(0, Math.min(100, (remaining / monthlyBudget) * 100))}%` }}
                   />
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="h-[400px]"
+          <div
+            className="h-[400px] animate-in slide-in-from-left-5 duration-500 delay-300"
           >
             <Card className="h-full bg-card/50 border-border backdrop-blur-sm">
               <CardHeader>
@@ -421,14 +404,10 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="h-[400px]"
+          <div
+            className="h-[400px] animate-in slide-in-from-right-5 duration-500 delay-400"
           >
             <Card className="h-full bg-card/50 border-border backdrop-blur-sm">
               <CardHeader>
@@ -468,16 +447,13 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         </div>
 
 
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.4 }}
+        <div
+          className="animate-in slide-in-from-bottom-5 duration-500 delay-500"
         >
           <Card className="bg-card/50 border-border backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 pb-4">
@@ -492,14 +468,10 @@ export default function HomePage() {
               </Button>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
-              <AnimatePresence mode="popLayout">
-                {expenses.length === 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="flex flex-col items-center justify-center py-16 text-center"
-                  >
+              {expenses.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-16 text-center animate-in zoom-in duration-300"
+                >
                     <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-primary/5">
                       <Wallet className="w-12 h-12 text-primary" />
                     </div>
@@ -510,21 +482,17 @@ export default function HomePage() {
                     <Button onClick={() => setIsDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
                       <Plus className="w-4 h-4 mr-2" /> Add First Expense
                     </Button>
-                  </motion.div>
+                  </div>
                 ) : (
-                  expenses.map((e) => {
+                  expenses.slice().reverse().map((e) => {
                     const Icon = getCategoryIcon(e.category);
                     return (
-                      <motion.div
+                      <div
                         key={e.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        layout
-                        className="group flex justify-between items-center p-4 rounded-xl bg-muted/30 hover:bg-muted/80 transition-all border border-transparent hover:border-border"
+                        className="group flex justify-between items-center p-4 rounded-xl bg-muted/30 hover:bg-muted/80 transition-all border border-transparent hover:border-border animate-in slide-in-from-left-5 duration-300"
                       >
                         <div className="flex items-center gap-4">
-                          <div 
+                          <div
                             className="p-3 rounded-xl bg-opacity-20 transition-transform group-hover:scale-110"
                             style={{ backgroundColor: `${getCategoryColor(e.category)}20` }}
                           >
@@ -541,23 +509,22 @@ export default function HomePage() {
                         </div>
                         <div className="flex items-center gap-6">
                           <span className="font-bold text-foreground font-mono">{formatINR(e.amount)}</span>
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
                             onClick={() => handleDeleteExpense(e.id)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   })
                 )}
-              </AnimatePresence>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[425px] bg-card border-border text-card-foreground">

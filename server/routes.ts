@@ -14,24 +14,55 @@ declare global {
 }
 
 // Middleware to check if user is authenticated
-function authMiddleware(req: any, res: any, next: any) {
+async function authMiddleware(req: any, res: any, next: any) {
   const sessionId = req.cookies?.sessionId;
   const userId = req.cookies?.userId;
-  
+
   if (!sessionId || !userId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
-  
-  req.userId = userId;
-  next();
+
+  try {
+    // Validate session exists and is not expired
+    const session = await storage.getSessionById(sessionId);
+    if (!session || session.userId !== userId || session.expiresAt < new Date()) {
+      return res.status(401).json({ message: "Session expired or invalid" });
+    }
+
+    req.userId = userId;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: "Authentication failed" });
+  }
 }
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Middleware for CORS on mobile requests
+  function addMobileCORS(req: any, res: any, next: any) {
+    const isMobile = req.headers['user-agent']?.includes('Mobile') ||
+                    req.headers['user-agent']?.includes('Android') ||
+                    req.headers['capacitor-platform'] === 'android';
+
+    if (isMobile) {
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
+    }
+
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+      return;
+    }
+
+    next();
+  }
+
   // Authentication Routes
-  app.post("/api/signup", async (req, res) => {
+  app.post("/api/signup", addMobileCORS, async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);
 
@@ -56,16 +87,25 @@ export async function registerRoutes(
       expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
       const session = await storage.createSession(user.id, expiresAt);
 
+      // Improved cookie settings for mobile compatibility
+      const isMobile = req.headers['user-agent']?.includes('Mobile') ||
+                      req.headers['user-agent']?.includes('Android') ||
+                      req.headers['capacitor-platform'] === 'android';
+
       res.cookie("sessionId", session.id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: isMobile ? "none" : "lax", // Allow cross-site for mobile
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        domain: process.env.NODE_ENV === "production" ? undefined : undefined, // Let browser handle domain
+        path: "/", // Ensure cookie is available for all paths
       });
       res.cookie("userId", user.id, {
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: isMobile ? "none" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        domain: process.env.NODE_ENV === "production" ? undefined : undefined,
+        path: "/", // Ensure cookie is available for all paths
       });
 
       res.json({
@@ -77,7 +117,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", addMobileCORS, async (req, res) => {
     try {
       const { username, password } = req.body;
 
@@ -100,16 +140,25 @@ export async function registerRoutes(
       expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
       const session = await storage.createSession(user.id, expiresAt);
 
+      // Improved cookie settings for mobile compatibility
+      const isMobile = req.headers['user-agent']?.includes('Mobile') ||
+                      req.headers['user-agent']?.includes('Android') ||
+                      req.headers['capacitor-platform'] === 'android';
+
       res.cookie("sessionId", session.id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: isMobile ? "none" : "lax", // Allow cross-site for mobile
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        domain: process.env.NODE_ENV === "production" ? undefined : undefined,
+        path: "/", // Ensure cookie is available for all paths
       });
       res.cookie("userId", user.id, {
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: isMobile ? "none" : "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        domain: process.env.NODE_ENV === "production" ? undefined : undefined,
+        path: "/", // Ensure cookie is available for all paths
       });
 
       res.json({
@@ -121,13 +170,13 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/logout", (req, res) => {
+  app.post("/api/logout", addMobileCORS, (req, res) => {
     res.clearCookie("sessionId");
     res.clearCookie("userId");
     res.json({ message: "Logged out" });
   });
 
-  app.get("/api/me", async (req, res) => {
+  app.get("/api/me", addMobileCORS, async (req, res) => {
     const userId = req.cookies?.userId;
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -142,7 +191,7 @@ export async function registerRoutes(
   });
 
   // Expense Routes
-  app.get("/api/expenses", authMiddleware, async (req, res) => {
+  app.get("/api/expenses", addMobileCORS, authMiddleware, async (req, res) => {
     try {
       const userId = req.userId!;
       const expenses = await storage.getExpensesByUserId(userId);
@@ -152,7 +201,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/expenses", authMiddleware, async (req, res) => {
+  app.post("/api/expenses", addMobileCORS, authMiddleware, async (req, res) => {
     try {
       const userId = req.userId;
       if (!userId) {
@@ -167,7 +216,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/expenses/:id", authMiddleware, async (req, res) => {
+  app.delete("/api/expenses/:id", addMobileCORS, authMiddleware, async (req, res) => {
     try {
       const userId = req.userId;
       if (!userId) {
@@ -191,6 +240,18 @@ export async function registerRoutes(
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Add CORS headers for mobile compatibility
+    const isMobile = req.headers['user-agent']?.includes('Mobile') ||
+                    req.headers['user-agent']?.includes('Android') ||
+                    req.headers['capacitor-platform'] === 'android';
+
+    if (isMobile) {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     }
 
     const expenses = await storage.getExpensesByUserId(userId);
@@ -220,7 +281,7 @@ export async function registerRoutes(
   });
 
   // Budget endpoints
-  app.get("/api/budget", authMiddleware, async (req, res) => {
+  app.get("/api/budget", addMobileCORS, authMiddleware, async (req, res) => {
     try {
       const userId = req.userId!;
       const budget = await storage.getUserBudget(userId);
@@ -230,7 +291,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/budget", authMiddleware, async (req, res) => {
+  app.post("/api/budget", addMobileCORS, authMiddleware, async (req, res) => {
     try {
       const userId = req.userId!;
       const { budget } = req.body;
@@ -258,7 +319,7 @@ export async function registerRoutes(
 
       // Ensure expenses is an array
       const expensesArray = Array.isArray(expenses) ? expenses : [];
-      
+
       if (expensesArray.length === 0) {
         return res.json({
           analysis: {
@@ -283,6 +344,33 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("AI Analysis Error:", error);
       res.status(500).json({ message: error.message || "AI analysis failed" });
+    }
+  });
+
+  // News endpoint
+  app.get("/api/news", addMobileCORS, async (req, res) => {
+    try {
+      const category = Array.isArray(req.query.category) ? req.query.category[0] : req.query.category || "general";
+      const country = Array.isArray(req.query.country) ? req.query.country[0] : req.query.country || "us";
+      const apiKey = process.env.NEWS_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({ message: "News API key not configured" });
+      }
+
+      const response = await fetch(
+        `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`News API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("News API Error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch news" });
     }
   });
 

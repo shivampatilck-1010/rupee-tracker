@@ -19,8 +19,8 @@ export function validateExpense(expense: any) {
     return false;
   }
 
-  // Validate description
-  if (!description || typeof description !== 'string' || description.trim().length === 0) {
+  // Validate description (optional)
+  if (description !== undefined && (typeof description !== 'string' || description.trim().length === 0)) {
     return false;
   }
 

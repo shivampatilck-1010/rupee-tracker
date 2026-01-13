@@ -97,13 +97,14 @@ export class MongoStorage implements IStorage {
 
   async createExpense(userId: string, insertExpense: InsertExpense): Promise<Expense> {
     if (!this.expenses) throw new Error("MongoDB not connected");
-    
+
     const expense: Expense = {
       id: randomUUID(),
-      ...insertExpense,
       userId,
+      amount: insertExpense.amount,
+      category: insertExpense.category,
       description: insertExpense.description || null,
-      date: insertExpense.date || new Date(),
+      date: insertExpense.date instanceof Date ? insertExpense.date : new Date(insertExpense.date),
       createdAt: new Date(),
     };
 
